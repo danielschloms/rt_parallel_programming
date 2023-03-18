@@ -3,3 +3,7 @@
 
 # Ada Library Information
 *.ali
+
+# Executable and Object folder
+bin/
+obj/
