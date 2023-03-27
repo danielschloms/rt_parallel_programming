@@ -7,3 +7,4 @@
 # Executable and Object folder
 bin/
 obj/
+*ref.adb
