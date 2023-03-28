@@ -14,6 +14,7 @@ procedure Main is
     subtype Int16 is Short_Integer;
     subtype Int32 is Long_Integer;
     subtype Int64 is Long_Long_Integer;
+    -- Int128 too large
     subtype LLFloat is Long_Long_Float;
 
     -- See root calculation link above
@@ -21,10 +22,9 @@ procedure Main is
        (LLFloat);
     use Value_Functions;
 
-    -- Check a, b against max_Int64^(1/3) (precalculated)
-    -- Could also use Long_Long_Long_Integer?
     ONE_THIRD      : constant LLFloat := 1.0 / 3.0;
-    MAX_THIRD_ROOT : constant Int64   := Int64 (LLFloat (Int64'Last)**ONE_THIRD);
+    -- Check a, b against max_Int64^(1/3) (precalculated) ~ 2.09 * 10^6
+    MAX_THIRD_ROOT : constant Int64 := Int64 (LLFloat (Int64'Last)**ONE_THIRD);
 
     max_n   : Int64;    -- Represents r in 0 < n <= r
     n_tasks : Int64;    -- Number of tasks
@@ -67,124 +67,97 @@ procedure Main is
 
         task body Generate_Tuples is
 
-            --  package Value_Functions is new Ada.Numerics
-            --     .Generic_Elementary_Functions
-            --     (LLFloat);
-            --  use Value_Functions;
-
             task_index : Int64;
             current_n  : Int64;
-            a          : Int64;
-            c_cubed    : Int64;
-            cc_root    : LLFloat;
-            c_cubed_bn : Int64;
-            cc_root_bn : LLFloat;
+            current_a  : Int64;
+
+            function Check_Tuple (a : in Int64; b : in Int64) return Boolean is
+                cc_root   : LLFloat;
+                c         : Int64;
+                check_sum : Int64;
+                c_cubed   : Int64;
+            begin
+
+                c_cubed := current_n - (a**3) - (b**3);
+
+                if c_cubed /= 0 then
+
+                    if (c_cubed > 0) then
+                        cc_root := LLFloat (c_cubed)**ONE_THIRD;
+                    else
+                        cc_root := -LLFloat (-c_cubed)**ONE_THIRD;
+                    end if;
+
+                    -- Previous check was with Float(Int(c)) == c
+                    -- but this resulted in inaccuracies due to the nature of Float.
+                    -- Therefore, check if a^3 + b^3 + Int(c)^3 == n -> works
+                    c         := Int64 (cc_root);
+                    check_sum := (a**3) + (b**3) + (c**3);
+
+                    if check_sum = current_n then
+                        Shared_Check.Set (True);
+                        IO.Put_Line
+                           ("Task" & Int64'Image (task_index) & ": " &
+                            Int64'Image (current_n) & " = (" &
+                            Int64'Image (a) & "**3) + (" & Int64'Image (b) &
+                            "**3) + (" & Int64'Image (c) & "**3)");
+                        return True;
+                    end if;
+
+                end if;
+
+                return False;
+            end Check_Tuple;
 
         begin
 
             accept Start (index : in Int64; n : in Int64) do
                 task_index := index;
                 current_n  := n;
-                IO.Put_Line
-                   ("Start task" & Int64'Image (task_index) & " for n =" &
-                    Int64'Image (n));
+                --  IO.Put_Line
+                --     ("Start task" & Int64'Image (task_index) & " for n =" &
+                --      Int64'Image (n));
             end Start;
 
-            a := task_index;
+            current_a := task_index;
 
-            -- IO.Put_Line ("t" & Int64'Image (task_index) & " 1");
+            while current_a < MAX_THIRD_ROOT loop
 
-            while a < MAX_THIRD_ROOT loop
+                if current_a rem 10000 = 0 then
+                    IO.Put_Line("Current a =" & Int64'Image(current_a));
+                end if;
 
                 if (Shared_Check.Check = True) then
-                    IO.Put_Line
-                       ("Task" & Int64'Image (task_index) &
-                        ": Solution check exit");
+                    --  IO.Put_Line
+                    --     ("Task" & Int64'Image (task_index) &
+                    --      ": Solution check exit");
                     exit;
                 end if;
 
-                -- IO.Put_Line ("t" & Int64'Image (task_index) & " 2");
-
-                for b in Int64 range -a .. a loop
-                    --  IO.Put_Line
-                    --     ("t" & Int64'Image (task_index) & " a" &
-                    --      Int64'Image (a) & " b" & Int64'Image (b));
-                    if b /= 0 then
-                        c_cubed := current_n - (a**3) - (b**3);
-
-                        if c_cubed /= 0 then
-                            --  IO.Put_Line
-                            --     ("t" & Int64'Image (task_index) & " a" &
-                            --      Int64'Image (a) & " b" & Int64'Image (b) &
-                            --      "ccubed " & Int64'Image (c_cubed));
-
-                            if (c_cubed > 0) then
-                                cc_root := LLFloat (c_cubed)**(1.0 / 3.0);
-                            else
-                                cc_root := -LLFloat (-c_cubed)**(1.0 / 3.0);
-                            end if;
-
-                            --  IO.Put_Line
-                            --     ("casted" &
-                            --      LLFloat'Image (LLFloat (Int64 (cc_root))));
-                            --  IO.Put_Line
-                            --     ("not casted" & LLFloat'Image (cc_root));
-                            if LLFloat (Int64 (cc_root)) = cc_root then
-                                Shared_Check.Set (True);
-                                IO.Put_Line
-                                   ("Task" & Int64'Image (task_index) &
-                                    ": Found solution for n =" &
-                                    Int64'Image (current_n));
-                                exit;
-                            end if;
+                for current_b in Int64 range -current_a .. current_a loop
+                    if current_b /= 0 then
+                        if Check_Tuple (current_a, current_b) = True then
+                            exit;
+                        elsif Check_Tuple (-current_a, current_b) = True then
+                            exit;
                         end if;
-                        --  IO.Put_Line
-                        --     ("t" & Int64'Image (task_index) & " try negative");
-
-                        c_cubed_bn := current_n - (a**3) - (-b**3);
-
-                        if c_cubed_bn /= 0 then
-
-                            if (c_cubed_bn > 0) then
-                                cc_root_bn :=
-                                   LLFloat (c_cubed_bn)**(1.0 / 3.0);
-                            else
-                                cc_root_bn :=
-                                   -LLFloat (-c_cubed_bn)**(1.0 / 3.0);
-                            end if;
-
-                            if LLFloat (Int64 (cc_root_bn)) = cc_root_bn then
-                                Shared_Check.Set (True);
-                                IO.Put_Line
-                                   ("Task" & Int64'Image (task_index) &
-                                    ": Found solution for n =" &
-                                    Int64'Image (current_n));
-                                exit;
-                            end if;
-                        end if;
-
-                        --  IO.Put_Line
-                        --     ("t" & Int64'Image (task_index) & " increase b");
                     end if;
                 end loop;
 
-                a := a + n_tasks;
+                current_a := current_a + n_tasks;
             end loop;
 
-            if a >= MAX_THIRD_ROOT then
+            if current_a >= MAX_THIRD_ROOT then
                 IO.Put_Line
                    ("Task" & Int64'Image (task_index) &
                     ": Reached max. third root");
             end if;
-            IO.Put_Line ("Unreachable!");
+
         exception
-            when e : Constraint_Error =>
-                IO.Put_Line ("Constr");
+            when e : others =>
                 IO.Put_Line
-                   ("t" & Int64'Image (task_index) & Exception_Message (e));
-            when e : others           =>
-                IO.Put_Line
-                   ("t" & Int64'Image (task_index) & Exception_Message (e));
+                   ("Exception Task" & Int64'Image (task_index) &
+                    Exception_Message (e));
         end Generate_Tuples;
 
         task_array : array (1 .. n_tasks) of Generate_Tuples;
@@ -195,8 +168,8 @@ procedure Main is
             task_array (index).Start (index, current_n);
         end loop;
     exception
-        when others =>
-            IO.Put_Line ("exception");
+        when e : others =>
+            IO.Put_Line ("Find_Solution exception: " & Exception_Message (e));
     end Find_Solution;
 
 begin
@@ -221,17 +194,19 @@ begin
     IO.Put_Line ("Tasks:         " & Int64'Image (n_tasks));
     IO.Put_Line ("-------------------------------------------");
 
-    -- Test & Debug stuff
-    IO.Put_Line ("Const one third:" & LLFloat'Image (ONE_THIRD));
-    IO.Put_Line ("Const max root:" & Int64'Image (MAX_THIRD_ROOT));
-    --
-
-    Find_Solution (9, 10);
-    return;
-
     for n in 1 .. max_n loop
         if (n mod 9 /= 4) and (n mod 9 /= 5) then
-            Find_Solution (n, n_tasks);
+            case n is
+                --
+                when 30 =>
+                    IO.Put_Line
+                       ("n = 30 solution too large: 30 = (2_220_422_932**3) - (283_059_965**3) - (2_218_888_517**3)");
+                when 33 =>
+                    IO.Put_Line
+                       ("n = 33 solution too large: 30 = (8_866_128_975_287_528**3) - (8_778_405_442_862_239**3) - (2_736_111_468_807_040**3)");
+                when others =>
+                    Find_Solution (n, n_tasks);
+            end case;
         end if;
     end loop;
 
