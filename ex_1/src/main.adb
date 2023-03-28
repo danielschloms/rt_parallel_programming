@@ -197,7 +197,7 @@ begin
     for n in 1 .. max_n loop
         if (n mod 9 /= 4) and (n mod 9 /= 5) then
             case n is
-                --
+                -- https://math.stackexchange.com/questions/1386034/integer-solutions-to-the-equation-a3b3c3-30
                 when 30 =>
                     IO.Put_Line
                        ("n = 30 solution too large: 30 = (2_220_422_932**3) - (283_059_965**3) - (2_218_888_517**3)");
