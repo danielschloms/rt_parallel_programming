@@ -2,6 +2,7 @@ with Ada.Text_IO;
 with Ada.Command_Line;
 with Ada.Integer_Text_IO;
 with Ada.Exceptions; use Ada.Exceptions;
+with Ada.Real_Time;  use Ada.Real_Time;
 
 -- https://en.wikibooks.org/wiki/Ada_Programming/Mathematical_calculations#Root
 -- needed for floating point exponentiation
@@ -25,6 +26,7 @@ procedure Main is
     ONE_THIRD      : constant LLFloat := 1.0 / 3.0;
     -- Check a, b against max_Int64^(1/3) (precalculated) ~ 2.09 * 10^6
     MAX_THIRD_ROOT : constant Int64 := Int64 (LLFloat (Int64'Last)**ONE_THIRD);
+    BM_LIMIT       : constant Int64   := 10_000;
 
     max_n   : Int64;    -- Represents r in 0 < n <= r
     n_tasks : Int64;    -- Number of tasks
@@ -34,7 +36,8 @@ procedure Main is
         IO.Put_Line ("Usage: sum_of_cubes <max. n> <tasks>");
     end Usage;
 
-    procedure Find_Solution (current_n : Int64; n_tasks : Int64) is
+    procedure Find_Solution (current_n : Int64; n_tasks : Int64; limit : Int64)
+    is
 
         protected Shared_Check is
 
@@ -62,7 +65,7 @@ procedure Main is
         end Shared_Check;
 
         task type Generate_Tuples is
-            entry Start (index : in Int64; n : in Int64);
+            entry Start (index : in Int64; n : in Int64; limit : in Int64);
         end Generate_Tuples;
 
         task body Generate_Tuples is
@@ -70,6 +73,7 @@ procedure Main is
             task_index : Int64;
             current_n  : Int64;
             current_a  : Int64;
+            max_a      : Int64;
 
             function Check_Tuple (a : in Int64; b : in Int64) return Boolean is
                 cc_root   : LLFloat;
@@ -111,9 +115,10 @@ procedure Main is
 
         begin
 
-            accept Start (index : in Int64; n : in Int64) do
+            accept Start (index : in Int64; n : in Int64; limit : in Int64) do
                 task_index := index;
                 current_n  := n;
+                max_a      := limit;
                 --  IO.Put_Line
                 --     ("Start task" & Int64'Image (task_index) & " for n =" &
                 --      Int64'Image (n));
@@ -121,11 +126,11 @@ procedure Main is
 
             current_a := task_index;
 
-            while current_a < MAX_THIRD_ROOT loop
+            while current_a < max_a loop
 
-                if current_a rem 10000 = 0 then
-                    IO.Put_Line("Current a =" & Int64'Image(current_a));
-                end if;
+                --  if current_a rem 10_000 = 0 then
+                --      IO.Put_Line ("Current a =" & Int64'Image (current_a));
+                --  end if;
 
                 if (Shared_Check.Check = True) then
                     --  IO.Put_Line
@@ -165,49 +170,80 @@ procedure Main is
     begin
         Shared_Check.Set (False);
         for index in 1 .. n_tasks loop
-            task_array (index).Start (index, current_n);
+            task_array (index).Start (index, current_n, limit);
         end loop;
     exception
         when e : others =>
             IO.Put_Line ("Find_Solution exception: " & Exception_Message (e));
     end Find_Solution;
 
+    start_time : Time;
+    stop_time  : Time;
+    elapsed    : Time_Span;
+
 begin
     -- Parse arguments
-    if CL.Argument_Count /= 2 then
+    if CL.Argument_Count = 2 or CL.Argument_Count = 3 then
+        begin
+            max_n   := Int64'Value (CL.Argument (1));
+            n_tasks := Int64'Value (CL.Argument (2));
+        exception
+            when e : Constraint_Error =>
+                Usage;
+                raise Constraint_Error with "Invalid input argument(s)";
+        end;
+    end if;
+
+    if CL.Argument_Count = 2 then
+
+        IO.Put_Line ("Real Time & Parallel Programming Exercise 1");
+        IO.Put_Line ("-------------------------------------------");
+        IO.Put_Line ("Max. n:        " & Int64'Image (max_n));
+        IO.Put_Line ("Tasks:         " & Int64'Image (n_tasks));
+        IO.Put_Line ("-------------------------------------------");
+
+        start_time := Clock;
+        for n in 1 .. max_n loop
+            if (n mod 9 /= 4) and (n mod 9 /= 5) then
+                case n is
+                    -- https://math.stackexchange.com/questions/1386034/integer-solutions-to-the-equation-a3b3c3-30
+                    -- This problem seems to not be solved for n = 114, 165, 390, 579, 627, 633, 732, 795, 906, 921, 975
+                    -- and would take a very long time for some values (e.g. n = 39)
+                    --  when 30 =>
+                    --      IO.Put_Line
+                    --         ("n = 30 solution too large: 30 = (2_220_422_932**3) - (283_059_965**3) - (2_218_888_517**3)");
+                    --  when 33 =>
+                    --      IO.Put_Line
+                    --         ("n = 33 solution too large: 30 = (8_866_128_975_287_528**3) - (8_778_405_442_862_239**3) - (2_736_111_468_807_040**3)");
+                    when others =>
+                        Find_Solution (n, n_tasks, MAX_THIRD_ROOT);
+                end case;
+            end if;
+        end loop;
+        stop_time := Clock;
+        elapsed   := stop_time - start_time;
+        IO.Put_Line
+           ("Max. n =" & Int64'Image (max_n) & ", elapsed time:" &
+            Duration'Image (To_Duration (elapsed)) & " seconds," &
+            Int64'Image (n_tasks) & " tasks");
+
+    elsif CL.Argument_Count = 3 then
+        if CL.Argument (3) = "-b" then
+            start_time := Clock;
+            Find_Solution (max_n, n_tasks, BM_LIMIT);
+            stop_time := Clock;
+            elapsed   := stop_time - start_time;
+            IO.Put_Line
+               ("BM elapsed time: " & Duration'Image (To_Duration (elapsed)) &
+                " seconds, limit" & Int64'Image (BM_LIMIT) & "," &
+                Int64'Image (n_tasks) & " tasks");
+        else
+            Usage;
+            return;
+        end if;
+    else
         Usage;
         return;
     end if;
-
-    begin
-        max_n   := Int64'Value (CL.Argument (1));
-        n_tasks := Int64'Value (CL.Argument (2));
-    exception
-        when e : Constraint_Error =>
-            Usage;
-            raise Constraint_Error with "Invalid input argument(s)";
-    end;
-
-    IO.Put_Line ("Real Time & Parallel Programming Exercise 1");
-    IO.Put_Line ("-------------------------------------------");
-    IO.Put_Line ("Max. n:        " & Int64'Image (max_n));
-    IO.Put_Line ("Tasks:         " & Int64'Image (n_tasks));
-    IO.Put_Line ("-------------------------------------------");
-
-    for n in 1 .. max_n loop
-        if (n mod 9 /= 4) and (n mod 9 /= 5) then
-            case n is
-                -- https://math.stackexchange.com/questions/1386034/integer-solutions-to-the-equation-a3b3c3-30
-                when 30 =>
-                    IO.Put_Line
-                       ("n = 30 solution too large: 30 = (2_220_422_932**3) - (283_059_965**3) - (2_218_888_517**3)");
-                when 33 =>
-                    IO.Put_Line
-                       ("n = 33 solution too large: 30 = (8_866_128_975_287_528**3) - (8_778_405_442_862_239**3) - (2_736_111_468_807_040**3)");
-                when others =>
-                    Find_Solution (n, n_tasks);
-            end case;
-        end if;
-    end loop;
 
 end Main;
