@@ -8,15 +8,18 @@ with Ada.Real_Time;  use Ada.Real_Time;
 -- needed for floating point exponentiation
 with Ada.Numerics.Generic_Elementary_Functions;
 
+-- Project packages
+with Typenames; use Typenames;
+
 procedure Main is
     package IO renames Ada.Text_IO;
     package CL renames Ada.Command_Line;
 
-    subtype Int16 is Short_Integer;
-    subtype Int32 is Long_Integer;
-    subtype Int64 is Long_Long_Integer;
-    -- Int128 too large
-    subtype LLFloat is Long_Long_Float;
+    --  subtype Int16 is Short_Integer;
+    --  subtype Int32 is Long_Integer;
+    --  subtype Int64 is Long_Long_Integer;
+    --  -- Int128 too large
+    --  subtype LLFloat is Long_Long_Float;
 
     -- See root calculation link above
     package Value_Functions is new Ada.Numerics.Generic_Elementary_Functions
@@ -30,10 +33,11 @@ procedure Main is
 
     max_n   : Int64;    -- Represents r in 0 < n <= r
     n_tasks : Int64;    -- Number of tasks
+    timeout : Duration; -- Max. time to calculate a solution
 
     procedure Usage is
     begin
-        IO.Put_Line ("Usage: main <max. n> <tasks>");
+        IO.Put_Line ("Usage: main <max. n> <tasks> <timeout> [-b]");
     end Usage;
 
     procedure Find_Solution (current_n : Int64; n_tasks : Int64; limit : Int64)
@@ -128,10 +132,6 @@ procedure Main is
 
             while current_a < max_a loop
 
-                --  if current_a rem 10_000 = 0 then
-                --      IO.Put_Line ("Current a =" & Int64'Image (current_a));
-                --  end if;
-
                 if (Shared_Check.Check = True) then
                     --  IO.Put_Line
                     --     ("Task" & Int64'Image (task_index) &
@@ -183,10 +183,16 @@ procedure Main is
 
 begin
     -- Parse arguments
-    if CL.Argument_Count = 2 or CL.Argument_Count = 3 then
+    if CL.Argument_Count = 3 or CL.Argument_Count = 4 then
         begin
             max_n   := Int64'Value (CL.Argument (1));
             n_tasks := Int64'Value (CL.Argument (2));
+            timeout := Duration'Value (CL.Argument (3));
+
+            if (max_n <= 0 or n_tasks <= 0 or timeout <= 0.0) then
+                IO.Put_Line ("Only positive non-zero values allowed");
+                return;
+            end if;
         exception
             when e : Constraint_Error =>
                 Usage;
@@ -194,12 +200,14 @@ begin
         end;
     end if;
 
-    if CL.Argument_Count = 2 then
+    if CL.Argument_Count = 3 then
 
-        IO.Put_Line ("Real Time & Parallel Programming Exercise 1");
+        IO.Put_Line ("Real Time & Parallel Programming Exercise 2");
         IO.Put_Line ("-------------------------------------------");
         IO.Put_Line ("Max. n:        " & Int64'Image (max_n));
         IO.Put_Line ("Tasks:         " & Int64'Image (n_tasks));
+        IO.Put_Line
+           ("Max. timeout:  " & Duration'Image (timeout) & " seconds");
         IO.Put_Line ("-------------------------------------------");
 
         start_time := Clock;
@@ -227,7 +235,7 @@ begin
             Duration'Image (To_Duration (elapsed)) & " seconds," &
             Int64'Image (n_tasks) & " tasks");
 
-    elsif CL.Argument_Count = 3 then
+    elsif CL.Argument_Count = 4 then
         if CL.Argument (3) = "-b" then
             start_time := Clock;
             Find_Solution (max_n, n_tasks, BM_LIMIT);
