@@ -13,10 +13,17 @@ package body Sum_Of_Cubes is
    (LLFloat);
   use Value_Functions;
 
+  -- @brief Procedure to find an integer solution for a**3 + b**3 + c**3 = n
+  --
+  -- @param current_n the n for with a solution must be found
+  -- @param n_tasks # of tasks that search for a single solution in parallel
+  -- @param limit the max search range (MAX_THIRD_ROOT per default)
+  -- @param timeout the time limit to search for a solution
   procedure Find_Solution
    (current_n : Int64; n_tasks : Int64; limit : Int64; timeout : Duration)
   is
 
+    -- @brief Protected object to share solution state
     protected Shared_Check is
 
       procedure Set (value : in Boolean);
@@ -42,6 +49,13 @@ package body Sum_Of_Cubes is
 
     end Shared_Check;
 
+    -- @brief Task to generate tuples a, b, c in the form a**3 + b**3 + c**3 = n
+    --
+    -- Entry Start params:
+    -- @param index the task index
+    -- @param n the current n
+    -- @param limit the search range limit
+    -- @param timeout the max search time for a task
     task type Generate_Tuples is
       entry Start
        (index   : in Int64; n : in Int64; limit : in Int64;
@@ -79,6 +93,7 @@ package body Sum_Of_Cubes is
           c         := Int64 (cc_root);
           check_sum := (a**3) + (b**3) + (c**3);
 
+          -- c is integer third root -> solution found, set in protected shared object
           if check_sum = current_n then
             Shared_Check.Set (True);
             IO.Put_Line
@@ -107,14 +122,18 @@ package body Sum_Of_Cubes is
 
       -- For setting task timeouts, see Asynchronous Transfer of Control
       -- https://www.adaic.org/resources/add_content/standards/12aarm/html/AA-9-7-4.html
-
       select
         delay max_time;
-        IO.Put_Line ("Task" & Int64'Image (task_index) & ", n ="& Int64'Image(current_n) &": timeout");
+        IO.Put_Line
+         ("Task" & Int64'Image (task_index) & ", n =" &
+          Int64'Image (current_n) & ": timeout");
       then abort
 
         current_a := task_index;
 
+        -- Get tuples by iterating b from -a to a and calculating the corresponding c in Check_Tuple()
+        -- Perform the check for a, b and -a, b
+        -- Different tasks don't perform the same calculations since a is incremented by the # of tasks
         while current_a < max_a loop
 
           if (Shared_Check.Check = True) then
@@ -134,6 +153,7 @@ package body Sum_Of_Cubes is
           current_a := current_a + n_tasks;
         end loop;
 
+        -- Max. third root is defined by the third root of a max. Int64
         if (current_a >= MAX_THIRD_ROOT) then
           IO.Put_Line
            ("Task" & Int64'Image (task_index) & ": Reached max. third root");

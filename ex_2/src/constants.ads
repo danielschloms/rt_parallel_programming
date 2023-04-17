@@ -1,7 +1,8 @@
-with Typenames; use Typenames;
 -- https://en.wikibooks.org/wiki/Ada_Programming/Mathematical_calculations#Root
 -- needed for floating point exponentiation
 with Ada.Numerics.Generic_Elementary_Functions;
+
+with Typenames; use Typenames;
 
 package Constants is
   -- See root calculation link above

@@ -3,7 +3,7 @@ with Ada.Command_Line;
 with Ada.Integer_Text_IO;
 with Ada.Exceptions; use Ada.Exceptions;
 with Ada.Real_Time;  use Ada.Real_Time;
-with Sum_Of_Cubes; use Sum_Of_Cubes;
+with Sum_Of_Cubes;   use Sum_Of_Cubes;
 
 -- Project packages
 with Typenames; use Typenames;
@@ -17,6 +17,7 @@ procedure Main is
     n_tasks : Int64;    -- Number of tasks
     timeout : Duration; -- Max. time to calculate a solution
 
+    -- @brief Prints usage hints
     procedure Usage is
     begin
         IO.Put_Line ("Usage: main <max. n> <tasks> <timeout>");
@@ -52,25 +53,15 @@ begin
     IO.Put_Line ("-------------------------------------------");
     IO.Put_Line ("Max. n:        " & Int64'Image (max_n));
     IO.Put_Line ("Tasks:         " & Int64'Image (n_tasks));
-    IO.Put_Line ("Max. timeout:  " & Duration'Image (timeout) & " seconds");
+    IO.Put_Line ("Timeout:       " & Duration'Image (timeout) & " seconds");
     IO.Put_Line ("-------------------------------------------");
 
     start_time := Clock;
     for n in 1 .. max_n loop
         if (n mod 9 /= 4) and (n mod 9 /= 5) then
-            case n is
-                -- https://math.stackexchange.com/questions/1386034/integer-solutions-to-the-equation-a3b3c3-30
-                -- This problem seems to not be solved for n = 114, 165, 390, 579, 627, 633, 732, 795, 906, 921, 975
-                -- and would take a very long time for some values (e.g. n = 39)
-                --  when 30 =>
-                --      IO.Put_Line
-                --         ("n = 30 solution too large: 30 = (2_220_422_932**3) - (283_059_965**3) - (2_218_888_517**3)");
-                --  when 33 =>
-                --      IO.Put_Line
-                --         ("n = 33 solution too large: 30 = (8_866_128_975_287_528**3) - (8_778_405_442_862_239**3) - (2_736_111_468_807_040**3)");
-                when others =>
-                    Find_Solution (n, n_tasks, MAX_THIRD_ROOT, timeout);
-            end case;
+            -- https://math.stackexchange.com/questions/1386034/integer-solutions-to-the-equation-a3b3c3-30
+            -- Some n take very long to calculate -> Ex_2 deals with this via timeout
+            Find_Solution (n, n_tasks, MAX_THIRD_ROOT, timeout);
         end if;
     end loop;
     stop_time := Clock;
