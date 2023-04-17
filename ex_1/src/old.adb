@@ -71,6 +71,8 @@ procedure Main is
     --     array (0 .. Integer'Value (CL.Argument (2)) - 1) of Generate_Tuples;
 
 begin
+    IO.Put_Line("Deprecated!");
+    return;
     -- Parse arguments
     if CL.Argument_Count /= 2 then
         Usage;
