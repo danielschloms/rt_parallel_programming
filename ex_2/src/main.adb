@@ -9,6 +9,10 @@ with Sum_Of_Cubes;   use Sum_Of_Cubes;
 with Typenames; use Typenames;
 with Constants; use Constants;
 
+-- @brief The main procedure of exercise 2
+-- Usage: main <max. n> <tasks> <timeout>
+-- Finds solutions for the Diophantine equation n = a**3 + b**3 + c**3 with the specified max. n,
+-- number of tasks and max. calculation time per solution
 procedure Main is
     package IO renames Ada.Text_IO;
     package CL renames Ada.Command_Line;
@@ -60,7 +64,7 @@ begin
     for n in 1 .. max_n loop
         if (n mod 9 /= 4) and (n mod 9 /= 5) then
             -- https://math.stackexchange.com/questions/1386034/integer-solutions-to-the-equation-a3b3c3-30
-            -- Some n take very long to calculate -> Ex_2 deals with this via timeout
+            -- Some n take very long to calculate -> exercise 2 deals with this via timeout
             Find_Solution (n, n_tasks, MAX_THIRD_ROOT, timeout);
         end if;
     end loop;

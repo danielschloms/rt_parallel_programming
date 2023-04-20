@@ -135,7 +135,7 @@ package body Sum_Of_Cubes is
         -- Perform the check for a, b and -a, b
         -- Different tasks don't perform the same calculations since a is incremented by the # of tasks
         while current_a < max_a loop
-
+          -- Potentially add delay 0.0 here if scheduling does not work properly on different machine
           if (Shared_Check.Check = True) then
             exit;
           end if;
