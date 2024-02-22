@@ -2,6 +2,8 @@
 
 TU Wien Course Real Time &amp; Parallel Programming, Summer Term 2023.
 
-Build with `gprbuild build.gpr`
++ `cd` into desired exercise directory
 
-Run `bin/sum_of_cubes <max n> <tasks>` 
++ Build with `gprbuild build.gpr`
+
++ Run `bin/main` with the necessary arguments
